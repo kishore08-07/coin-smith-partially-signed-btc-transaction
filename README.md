@@ -426,6 +426,18 @@ Evaluation happens in two phases:
 
 ---
 
+## Do not modify
+
+The following files and directories are part of the evaluation infrastructure and **must not be edited**:
+
+- `grade.sh` — automated grading script
+- `fixtures/` — public test fixtures
+- `.github/` — CI/CD workflow configuration
+
+Modifying any of these may cause your submission to fail manual evaluation.
+
+---
+
 ## Plagiarism policy
 
 - All submitted code must be your own original work. You may use AI coding assistants (e.g. GitHub Copilot, ChatGPT, Claude) as tools, but you must understand and be able to explain every part of your submission.
