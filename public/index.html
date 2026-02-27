@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coin Smith — PSBT Transaction Builder</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --orange: #d29922;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 1.8rem; margin-bottom: 4px; }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+    h2 { font-size: 1.2rem; margin: 16px 0 8px; color: var(--accent); }
+    h3 { font-size: 1rem; margin: 12px 0 6px; color: var(--text-muted); }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+    .fixture-selector {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .fixture-selector select, .fixture-selector button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .fixture-selector button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-weight: 600;
+    }
+    .fixture-selector button:hover { opacity: 0.9; }
+    .fixture-selector button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0d1117;
+      color: var(--text);
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.8rem;
+      resize: vertical;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .stat-card {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 1.4rem; font-weight: 700; margin-top: 4px; }
+    .stat-card .value.green { color: var(--green); }
+    .stat-card .value.orange { color: var(--orange); }
+    .stat-card .value.red { color: var(--red); }
+    .stat-card .value.purple { color: var(--purple); }
+    .stat-card .value.accent { color: var(--accent); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; color: var(--text-muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 0.75rem; text-transform: uppercase; }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-family: 'SF Mono', Monaco, monospace; font-size: 0.8rem; }
+    tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-change { background: #1f6feb33; color: var(--accent); border: 1px solid var(--accent); }
+    .badge-payment { background: #3fb95033; color: var(--green); border: 1px solid var(--green); }
+    .badge-type { background: #30363d; color: var(--text-muted); border: 1px solid var(--border); }
+
+    .warning-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .warning-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .warning-chip.SEND_ALL { background: #d2992233; color: var(--orange); border: 1px solid var(--orange); }
+    .warning-chip.HIGH_FEE { background: #f8514933; color: var(--red); border: 1px solid var(--red); }
+    .warning-chip.RBF_SIGNALING { background: #bc8cff33; color: var(--purple); border: 1px solid var(--purple); }
+    .warning-chip.DUST_CHANGE { background: #f8514933; color: var(--red); border: 1px solid var(--red); }
+    .warning-chip.default { background: #30363d; color: var(--text-muted); border: 1px solid var(--border); }
+
+    .indicator { display: inline-flex; align-items: center; gap: 6px; }
+    .indicator .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.off { background: var(--border); }
+
+    .psbt-display {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      word-break: break-all;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .error-banner {
+      background: #f8514922;
+      border: 1px solid var(--red);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--red);
+    }
+    .error-banner strong { display: block; margin-bottom: 4px; }
+
+    .tooltip-text {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: 2px;
+    }
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+    .flow-box {
+      background: #0d1117;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      text-align: center;
+      min-width: 120px;
+    }
+    .flow-box .fb-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+    .flow-box .fb-value { font-size: 1.2rem; font-weight: 700; }
+    .flow-arrow { color: var(--text-muted); font-size: 1.5rem; }
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ── Helper functions ─────────────────────────────────────────────────
+
+    function formatSats(sats) {
+      if (sats == null) return '—';
+      return sats.toLocaleString() + ' sats';
+    }
+
+    function truncateHex(hex, len = 8) {
+      if (!hex) return '';
+      if (hex.length <= len * 2 + 2) return hex;
+      return hex.slice(0, len) + '…' + hex.slice(-len);
+    }
+
+    function truncateTxid(txid) {
+      if (!txid) return '';
+      return txid.slice(0, 8) + '…' + txid.slice(-8);
+    }
+
+    const WARNING_DESCRIPTIONS = {
+      SEND_ALL: 'All funds are being sent — no change returned to your wallet. The leftover (difference between inputs and payments) becomes the miner fee.',
+      HIGH_FEE: 'The transaction fee is unusually high. This could mean the fee rate is above 200 sat/vB or the total fee exceeds 1,000,000 sats.',
+      RBF_SIGNALING: 'This transaction signals Replace-By-Fee (BIP-125), which means it can be replaced with a higher-fee version before confirmation.',
+      DUST_CHANGE: 'The change output is very small (below 546 sats). Tiny outputs are uneconomical to spend and may be rejected by the network.',
+    };
+
+    const WARNING_ICONS = {
+      SEND_ALL: '📤',
+      HIGH_FEE: '🔥',
+      RBF_SIGNALING: '🔄',
+      DUST_CHANGE: '🧹',
+    };
+
+    // ── Components ───────────────────────────────────────────────────────
+
+    function StatCard({ label, value, color, tooltip }) {
+      return (
+        <div className="stat-card">
+          <div className="label">{label}</div>
+          <div className={`value ${color || ''}`}>{value}</div>
+          {tooltip && <div className="tooltip-text">{tooltip}</div>}
+        </div>
+      );
+    }
+
+    function TransactionFlow({ report }) {
+      const inputSum = report.selected_inputs.reduce((s, i) => s + i.value_sats, 0);
+      const outputSum = report.outputs.reduce((s, o) => s + o.value_sats, 0);
+      return (
+        <div className="flow-diagram">
+          <div className="flow-box" style={{borderColor: 'var(--accent)'}}>
+            <div className="fb-label">Inputs</div>
+            <div className="fb-value" style={{color: 'var(--accent)'}}>{formatSats(inputSum)}</div>
+            <div className="tooltip-text">{report.selected_inputs.length} UTXO(s) selected</div>
+          </div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-box" style={{borderColor: 'var(--green)'}}>
+            <div className="fb-label">Outputs</div>
+            <div className="fb-value" style={{color: 'var(--green)'}}>{formatSats(outputSum)}</div>
+            <div className="tooltip-text">{report.outputs.length} output(s)</div>
+          </div>
+          <div className="flow-arrow">+</div>
+          <div className="flow-box" style={{borderColor: 'var(--orange)'}}>
+            <div className="fb-label">Fee</div>
+            <div className="fb-value" style={{color: 'var(--orange)'}}>{formatSats(report.fee_sats)}</div>
+            <div className="tooltip-text">{report.fee_rate_sat_vb.toFixed(2)} sat/vB × {report.vbytes} vB</div>
+          </div>
+        </div>
+      );
+    }
+
+    function InputsTable({ inputs }) {
+      return (
+        <div style={{overflowX: 'auto'}}>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>TXID : Vout</th>
+                <th>Value</th>
+                <th>Script Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inputs.map((inp, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td title={inp.txid + ':' + inp.vout}>{truncateTxid(inp.txid)}:{inp.vout}</td>
+                  <td>{formatSats(inp.value_sats)}</td>
+                  <td><span className="badge badge-type">{inp.script_type}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    function OutputsTable({ outputs }) {
+      return (
+        <div style={{overflowX: 'auto'}}>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Address / Script</th>
+                <th>Value</th>
+                <th>Type</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              {outputs.map((out, i) => (
+                <tr key={i}>
+                  <td>{out.n}</td>
+                  <td title={out.script_pubkey_hex}>
+                    {out.address ? truncateHex(out.address, 12) : truncateHex(out.script_pubkey_hex)}
+                  </td>
+                  <td>{formatSats(out.value_sats)}</td>
+                  <td><span className="badge badge-type">{out.script_type}</span></td>
+                  <td>
+                    {out.is_change
+                      ? <span className="badge badge-change">🔄 Change</span>
+                      : <span className="badge badge-payment">💸 Payment</span>
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    function WarningsDisplay({ warnings }) {
+      if (!warnings || warnings.length === 0) {
+        return <div style={{color: 'var(--green)', fontSize: '0.9rem'}}>✅ No warnings — transaction looks safe</div>;
+      }
+      return (
+        <div className="warning-list">
+          {warnings.map((w, i) => (
+            <div key={i} className={`warning-chip ${w.code || 'default'}`} title={WARNING_DESCRIPTIONS[w.code] || ''}>
+              <span>{WARNING_ICONS[w.code] || '⚠️'}</span>
+              <span>{w.code}</span>
+            </div>
+          ))}
+          <div style={{width: '100%', marginTop: '8px'}}>
+            {warnings.map((w, i) => (
+              <div key={i} className="tooltip-text" style={{marginBottom: '4px'}}>
+                <strong style={{color: 'var(--text)'}}>{w.code}:</strong> {WARNING_DESCRIPTIONS[w.code] || w.message || 'Unknown warning'}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function RbfLocktimePanel({ report }) {
+      return (
+        <div className="stat-grid">
+          <div className="stat-card">
+            <div className="label">RBF Signaling</div>
+            <div className="indicator" style={{justifyContent: 'center', marginTop: '8px'}}>
+              <span className={`dot ${report.rbf_signaling ? 'on' : 'off'}`}></span>
+              <span style={{fontWeight: 600, color: report.rbf_signaling ? 'var(--green)' : 'var(--text-muted)'}}>
+                {report.rbf_signaling ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="tooltip-text">
+              {report.rbf_signaling
+                ? 'Transaction can be replaced with a higher fee before confirmation'
+                : 'Transaction is final once broadcast'
+              }
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="label">Locktime</div>
+            <div className={`value ${report.locktime > 0 ? 'purple' : ''}`}>
+              {report.locktime === 0 ? 'None' : report.locktime.toLocaleString()}
+            </div>
+            <div className="tooltip-text">
+              {report.locktime_type === 'none' && 'No time restriction — transaction can be mined immediately'}
+              {report.locktime_type === 'block_height' && `Valid after block ${report.locktime.toLocaleString()}`}
+              {report.locktime_type === 'unix_timestamp' && `Valid after ${new Date(report.locktime * 1000).toUTCString()}`}
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="label">Locktime Type</div>
+            <div className="value" style={{fontSize: '1rem'}}>
+              {report.locktime_type === 'none' && '—'}
+              {report.locktime_type === 'block_height' && '🧱 Block Height'}
+              {report.locktime_type === 'unix_timestamp' && '🕐 Unix Timestamp'}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Main App ─────────────────────────────────────────────────────────
+
+    function App() {
+      const [fixtures, setFixtures] = useState([]);
+      const [selectedFixture, setSelectedFixture] = useState('');
+      const [fixtureJson, setFixtureJson] = useState('');
+      const [report, setReport] = useState(null);
+      const [error, setError] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      // Load fixture list
+      useEffect(() => {
+        fetch('/api/fixtures')
+          .then(r => r.json())
+          .then(data => {
+            setFixtures(data.fixtures || []);
+            if (data.fixtures && data.fixtures.length > 0) {
+              setSelectedFixture(data.fixtures[0]);
+            }
+          })
+          .catch(() => {});
+      }, []);
+
+      // Load fixture content when selection changes
+      useEffect(() => {
+        if (!selectedFixture) return;
+        fetch(`/api/fixtures/${selectedFixture}`)
+          .then(r => r.text())
+          .then(text => {
+            try {
+              const parsed = JSON.parse(text);
+              setFixtureJson(JSON.stringify(parsed, null, 2));
+            } catch {
+              setFixtureJson(text);
+            }
+          })
+          .catch(() => {});
+      }, [selectedFixture]);
+
+      const handleBuild = async () => {
+        setLoading(true);
+        setError(null);
+        setReport(null);
+        try {
+          const parsed = JSON.parse(fixtureJson);
+          const res = await fetch('/api/build', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsed),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            setReport(data);
+          } else {
+            setError(data.error || { code: 'UNKNOWN', message: 'Build failed' });
+          }
+        } catch (e) {
+          setError({ code: 'PARSE_ERROR', message: e.message || 'Invalid JSON' });
+        }
+        setLoading(false);
+      };
+
+      return (
+        <div className="container">
+          <h1>⚒️ <span>Coin Smith</span></h1>
+          <div className="subtitle">Safe PSBT Transaction Builder — Bitcoin Wallet Simulator</div>
+
+          {/* Fixture Selection */}
+          <div className="panel">
+            <h2>📁 Load Fixture</h2>
+            <div className="fixture-selector">
+              <select value={selectedFixture} onChange={e => setSelectedFixture(e.target.value)}>
+                {fixtures.map(f => <option key={f} value={f}>{f.replace('.json', '')}</option>)}
+              </select>
+              <button onClick={handleBuild} disabled={loading || !fixtureJson.trim()}>
+                {loading ? '⏳ Building…' : '🔨 Build PSBT'}
+              </button>
+            </div>
+            <textarea
+              value={fixtureJson}
+              onChange={e => setFixtureJson(e.target.value)}
+              placeholder="Paste fixture JSON here or select from dropdown..."
+              spellCheck={false}
+            />
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="error-banner">
+              <strong>❌ Error: {error.code}</strong>
+              {error.message}
+            </div>
+          )}
+
+          {/* Report Display */}
+          {report && (
+            <>
+              {/* Transaction Flow Diagram */}
+              <div className="panel">
+                <h2>🔀 Transaction Flow</h2>
+                <TransactionFlow report={report} />
+              </div>
+
+              {/* Summary Stats */}
+              <div className="panel">
+                <h2>📊 Summary</h2>
+                <div className="stat-grid">
+                  <StatCard label="Total Inputs" value={report.selected_inputs.length} color="accent" tooltip="Number of UTXOs selected from wallet" />
+                  <StatCard label="Total Outputs" value={report.outputs.length} color="green" tooltip="Payment outputs + optional change" />
+                  <StatCard label="Fee" value={formatSats(report.fee_sats)} color="orange" tooltip="Total miner fee paid for this transaction" />
+                  <StatCard label="Fee Rate" value={report.fee_rate_sat_vb.toFixed(2) + ' sat/vB'} color="orange" tooltip="Fee per virtual byte — determines mining priority" />
+                  <StatCard label="Virtual Size" value={report.vbytes + ' vB'} color="" tooltip="Transaction weight with witness discount (SegWit)" />
+                  <StatCard label="Strategy" value={report.strategy} color="accent" tooltip="Coin selection algorithm used" />
+                </div>
+              </div>
+
+              {/* Warnings */}
+              <div className="panel">
+                <h2>⚠️ Warnings</h2>
+                <WarningsDisplay warnings={report.warnings} />
+              </div>
+
+              {/* RBF / Locktime */}
+              <div className="panel">
+                <h2>🔐 RBF & Locktime</h2>
+                <RbfLocktimePanel report={report} />
+              </div>
+
+              {/* Inputs & Outputs */}
+              <div className="grid">
+                <div className="panel">
+                  <h2>📥 Selected Inputs (UTXOs)</h2>
+                  <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                    Coins selected from your wallet to fund this transaction
+                  </div>
+                  <InputsTable inputs={report.selected_inputs} />
+                </div>
+                <div className="panel">
+                  <h2>📤 Transaction Outputs</h2>
+                  <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                    Payment destinations and change returned to your wallet
+                  </div>
+                  <OutputsTable outputs={report.outputs} />
+                </div>
+              </div>
+
+              {/* PSBT */}
+              <div className="panel">
+                <h2>📦 PSBT (Base64)</h2>
+                <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                  Partially Signed Bitcoin Transaction — an unsigned transaction packaged with metadata for safe offline signing
+                </div>
+                <div className="psbt-display">{report.psbt_base64}</div>
+              </div>
+            </>
+          )}
+
+          {/* Footer */}
+          <div style={{textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.8rem'}}>
+            Coin Smith — Summer of Bitcoin 2026 Week 2 Challenge
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
