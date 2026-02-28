@@ -111,6 +111,8 @@ describe('PSBT Builder', () => {
   test('network resolution works correctly', () => {
     expect(getNetwork('mainnet')).toBe(bitcoin.networks.bitcoin);
     expect(getNetwork('testnet')).toBe(bitcoin.networks.testnet);
+    expect(getNetwork('testnet4')).toBe(bitcoin.networks.testnet);
+    expect(getNetwork('signet')).toBe(bitcoin.networks.testnet);
     expect(getNetwork('regtest')).toBe(bitcoin.networks.regtest);
     expect(getNetwork('unknown')).toBe(bitcoin.networks.bitcoin); // default
   });

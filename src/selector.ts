@@ -1,8 +1,9 @@
 // ──────────────────────────────────────────────────────────────────────────
-// selector.ts — Deterministic coin selection (greedy largest-first)
+// selector.ts — Deterministic coin selection with effective-value ordering
 // ──────────────────────────────────────────────────────────────────────────
 
 import { UTXO, BuilderError } from './types';
+import { inputVbytes } from './weights';
 
 /**
  * Sort UTXOs deterministically:
@@ -13,6 +14,32 @@ import { UTXO, BuilderError } from './types';
 function sortUTXOs(utxos: UTXO[]): UTXO[] {
   return [...utxos].sort((a, b) => {
     if (b.value_sats !== a.value_sats) return b.value_sats - a.value_sats;
+    if (a.txid !== b.txid) return a.txid < b.txid ? -1 : 1;
+    return a.vout - b.vout;
+  });
+}
+
+/**
+ * Compute the effective value of a UTXO at a given fee rate.
+ * Effective value = nominal value − marginal cost to include the input.
+ *
+ * Prefers UTXOs that are cheap to spend (P2TR > P2WPKH > P2SH-P2WPKH > P2PKH).
+ * A negative effective value means the UTXO costs more to spend than it contributes.
+ */
+export function effectiveValue(utxo: UTXO, feeRate: number): number {
+  return utxo.value_sats - Math.ceil(inputVbytes(utxo.script_type) * feeRate);
+}
+
+/**
+ * Sort UTXOs by effective value (descending), with deterministic tiebreakers.
+ * This produces an optimal greedy ordering that minimizes total fees by
+ * preferring cheaper-to-spend inputs (e.g., P2TR over P2PKH at equal value).
+ */
+export function sortByEffectiveValue(utxos: UTXO[], feeRate: number): UTXO[] {
+  return [...utxos].sort((a, b) => {
+    const effA = effectiveValue(a, feeRate);
+    const effB = effectiveValue(b, feeRate);
+    if (effB !== effA) return effB - effA;
     if (a.txid !== b.txid) return a.txid < b.txid ? -1 : 1;
     return a.vout - b.vout;
   });
@@ -58,7 +85,7 @@ export function selectCoins(
       );
     } else {
       throw new BuilderError(
-        'INSUFFICIENT_FUNDS',
+        'MAX_INPUTS_EXCEEDED',
         `Cannot cover ${target} sats within ${limit} inputs (selected ${sum} sats from ${selected.length} inputs)`
       );
     }

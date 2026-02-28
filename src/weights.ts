@@ -58,7 +58,7 @@ interface InputWeight {
 const INPUT_WEIGHTS: Record<ScriptType, InputWeight> = {
   'p2wpkh': { nonWitness: 41, witness: 108 },
   'p2tr': { nonWitness: 41, witness: 66 },
-  'p2pkh': { nonWitness: 148, witness: 0 },
+  'p2pkh': { nonWitness: 148, witness: 1 }, // 1 byte for empty witness stack in segwit txs
   'p2sh-p2wpkh': { nonWitness: 64, witness: 108 },
   'p2wsh': { nonWitness: 41, witness: 108 }, // approximation; varies with script
 };

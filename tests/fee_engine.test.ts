@@ -2,7 +2,7 @@
 // tests/fee_engine.test.ts — Unit tests for fee/change engine
 // ──────────────────────────────────────────────────────────────────────────
 
-import { computeFeeAndChange, DUST_THRESHOLD } from '../src/fee_engine';
+import { computeFeeAndChange, DUST_THRESHOLD, decideFeeChange } from '../src/fee_engine';
 import { UTXO, Payment, ChangeTemplate, BuilderError } from '../src/types';
 
 function makeUTXO(value: number, txid?: string): UTXO {
@@ -81,6 +81,23 @@ describe('Fee/Change Engine', () => {
     expect(() => computeFeeAndChange(utxos, payments, DEFAULT_CHANGE, 5)).toThrow(BuilderError);
   });
 
+  test('throws MAX_INPUTS_EXCEEDED when limit blocks coverage', () => {
+    const utxos = [
+      makeUTXO(3000, 'a'.repeat(64)),
+      makeUTXO(3000, 'b'.repeat(64)),
+      makeUTXO(3000, 'c'.repeat(64)),
+    ];
+    const payments = [makePayment(7000)];
+    // Need all 3 inputs but max_inputs is 2
+    try {
+      computeFeeAndChange(utxos, payments, DEFAULT_CHANGE, 5, 2);
+      fail('Should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(BuilderError);
+      expect((e as BuilderError).code).toBe('MAX_INPUTS_EXCEEDED');
+    }
+  });
+
   test('handles send-all where all inputs go to fee (tight margins)', () => {
     // 50000 input, 49400 payment at 5 sat/vB
     // fee ~= 550 for 1-in 1-out, leftover = 600 > 546 → might create change
@@ -95,5 +112,60 @@ describe('Fee/Change Engine', () => {
     if (result.change_value !== null) {
       expect(result.change_value).toBeGreaterThanOrEqual(DUST_THRESHOLD);
     }
+  });
+
+  test('prefers cheaper-to-spend inputs (P2TR over P2WPKH at same value)', () => {
+    const utxos = [
+      {
+        txid: 'b'.repeat(64), vout: 0, value_sats: 60000,
+        script_pubkey_hex: '00141111111111111111111111111111111111111111',
+        script_type: 'p2wpkh' as const, address: 'bc1test',
+      },
+      {
+        txid: 'a'.repeat(64), vout: 0, value_sats: 60000,
+        script_pubkey_hex: '51201111111111111111111111111111111111111111111111111111111111111111',
+        script_type: 'p2tr' as const, address: 'bc1ptest',
+      },
+    ];
+    const payments = [makePayment(50000)];
+    const { selected } = computeFeeAndChange(utxos, payments, DEFAULT_CHANGE, 5);
+    // With effective-value sorting, P2TR should be selected first (cheaper to spend)
+    expect(selected[0].script_type).toBe('p2tr');
+  });
+});
+
+describe('decideFeeChange helper', () => {
+  test('returns null when inputs cannot cover payments + fee', () => {
+    const result = decideFeeChange(
+      5000, 10000,
+      ['p2wpkh'], ['p2wpkh'], ['00142222222222222222222222222222222222222222'],
+      DEFAULT_CHANGE, 5
+    );
+    expect(result).toBeNull();
+  });
+
+  test('returns SEND_ALL when leftover < dust', () => {
+    // inputSum covers payments + fee, but leftover is below dust threshold
+    // Use feeRate=1 so feeNoChange is small (~110), leaving a small non-dust leftover impossible
+    const result = decideFeeChange(
+      10000, 9700,
+      ['p2wpkh'], ['p2wpkh'], ['00142222222222222222222222222222222222222222'],
+      DEFAULT_CHANGE, 1
+    );
+    expect(result).not.toBeNull();
+    expect(result!.change_value).toBeNull();
+    expect(result!.fee_sats).toBe(300); // 10000 - 9700
+  });
+
+  test('returns change when leftover is viable', () => {
+    const result = decideFeeChange(
+      100000, 70000,
+      ['p2wpkh'], ['p2wpkh'], ['00142222222222222222222222222222222222222222'],
+      DEFAULT_CHANGE, 5
+    );
+    expect(result).not.toBeNull();
+    expect(result!.change_value).not.toBeNull();
+    expect(result!.change_value!).toBeGreaterThanOrEqual(DUST_THRESHOLD);
+    expect(100000).toBe(70000 + result!.change_value! + result!.fee_sats);
   });
 });

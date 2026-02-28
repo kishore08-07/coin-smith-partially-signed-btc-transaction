@@ -82,11 +82,13 @@ export function buildPSBT(
         },
       };
 
-      // For P2TR, set the tapInternalKey if we can extract from scriptPubKey
-      if (utxo.script_type === 'p2tr') {
-        // P2TR spk: 5120<32-byte x-only pubkey>
+      // For P2TR, set the tapInternalKey (x-only pubkey from scriptPubKey)
+      // P2TR spk format: 5120<32-byte x-only pubkey> (34 bytes total)
+      if (utxo.script_type === 'p2tr' && utxo.script_pubkey_hex.length === 68) {
         const xOnlyPubkey = Buffer.from(utxo.script_pubkey_hex.slice(4), 'hex');
-        inputData.tapInternalKey = xOnlyPubkey;
+        if (xOnlyPubkey.length === 32) {
+          inputData.tapInternalKey = xOnlyPubkey;
+        }
       }
 
       psbt.addInput(inputData);
@@ -148,7 +150,10 @@ export function getNetwork(networkStr: string): bitcoin.Network {
       return bitcoin.networks.bitcoin;
     case 'testnet':
     case 'testnet3':
+    case 'testnet4':
       return bitcoin.networks.testnet;
+    case 'signet':
+      return bitcoin.networks.testnet; // signet uses testnet address params
     case 'regtest':
       return bitcoin.networks.regtest;
     default:

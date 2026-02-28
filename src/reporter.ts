@@ -40,7 +40,7 @@ export function buildSuccessReport(params: {
     rbfLocktime,
     psbtBase64,
     warnings,
-    strategy = 'greedy',
+    strategy = 'greedy_effective_value',
   } = params;
 
   // Build selected_inputs array

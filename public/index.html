@@ -186,6 +186,102 @@
     .flow-box .fb-value { font-size: 1.2rem; font-weight: 700; }
     .flow-arrow { color: var(--text-muted); font-size: 1.5rem; }
     .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    /* Glossary hover tooltips */
+    .glossary-term {
+      border-bottom: 1px dashed var(--text-muted);
+      cursor: help;
+      position: relative;
+      display: inline;
+    }
+    .glossary-term:hover .glossary-tip { visibility: visible; opacity: 1; }
+    .glossary-tip {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      bottom: 130%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1c2128;
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      font-style: normal;
+      line-height: 1.5;
+      width: 280px;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: opacity 0.15s;
+      pointer-events: none;
+    }
+
+    /* Educational intro section */
+    .intro-box {
+      background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .intro-box h2 { color: var(--accent); margin-top: 0; }
+    .intro-analogy {
+      background: #0d1117;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding: 14px 18px;
+      margin: 14px 0;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.7;
+    }
+    .intro-analogy strong { color: var(--accent); }
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .concept-card {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .concept-card .cc-icon { font-size: 1.5rem; margin-bottom: 4px; }
+    .concept-card .cc-title { font-weight: 700; font-size: 0.85rem; color: var(--text); margin-bottom: 4px; }
+    .concept-card .cc-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* Copy button */
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { background: #1c2128; color: var(--text); border-color: var(--accent); }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    /* "Why selected" explanation box */
+    .why-selected {
+      background: #3fb95015;
+      border: 1px solid #3fb95044;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .why-selected strong { color: var(--green); }
   </style>
 </head>
 <body>
@@ -213,10 +309,13 @@
     }
 
     const WARNING_DESCRIPTIONS = {
-      SEND_ALL: 'All funds are being sent — no change returned to your wallet. The leftover (difference between inputs and payments) becomes the miner fee.',
-      HIGH_FEE: 'The transaction fee is unusually high. This could mean the fee rate is above 200 sat/vB or the total fee exceeds 1,000,000 sats.',
-      RBF_SIGNALING: 'This transaction signals Replace-By-Fee (BIP-125), which means it can be replaced with a higher-fee version before confirmation.',
-      DUST_CHANGE: 'The change output is very small (below 546 sats). Tiny outputs are uneconomical to spend and may be rejected by the network.',
+      SEND_ALL: "You're sending everything — no change comes back to your wallet. It's like emptying your piggy bank completely. The small leftover becomes the miner's tip.",
+      HIGH_FEE: "The fee is unusually high — you're paying a lot for this transfer. Double-check if this is intentional. It's like paying $50 shipping on a $10 item.",
+      RBF_SIGNALING: "This transaction can be replaced before it confirms — like being able to recall a letter after mailing it but before delivery. Useful if you need to speed it up later.",
+      DUST_CHANGE: "The change is so tiny it's not worth keeping — like getting a fraction of a penny back. It costs more to spend than it's worth, so it's absorbed into the fee.",
+      DUST_PAYMENT: "One or more payments are extremely small (below 546 sats) — like trying to mail a letter with not enough postage. The network may reject these.",
+      UNKNOWN_NETWORK: "This transaction targets an unrecognized Bitcoin network. Make sure you're on the right network (mainnet for real Bitcoin, testnet for testing).",
+      LARGE_INPUT_COUNT: "This transaction uses many coins, making it large and expensive — like paying for lunch with hundreds of tiny coins instead of a few bills.",
     };
 
     const WARNING_ICONS = {
@@ -224,7 +323,105 @@
       HIGH_FEE: '🔥',
       RBF_SIGNALING: '🔄',
       DUST_CHANGE: '🧹',
+      DUST_PAYMENT: '💸',
+      UNKNOWN_NETWORK: '🌐',
+      LARGE_INPUT_COUNT: '📦',
     };
+
+    // ── Glossary (plain-English definitions for hover tooltips) ─────────
+
+    const GLOSSARY = {
+      UTXO: "Unspent Transaction Output — think of it like a specific bill in your wallet. You can't tear a bill in half; you spend the whole thing and get change back.",
+      sats: 'Satoshis — the smallest unit of Bitcoin. 1 Bitcoin = 100,000,000 sats. Like cents to dollars, but much smaller.',
+      'sat/vB': 'Satoshis per virtual byte — how much you pay per unit of transaction size. Higher = faster confirmation, like paying more for express shipping.',
+      vbytes: "Virtual bytes — the 'weight' of your transaction after SegWit discount. Smaller transactions cost less in fees.",
+      PSBT: "Partially Signed Bitcoin Transaction (BIP-174) — a standard format for sharing unsigned transactions. Like a check that's been filled out but not yet signed.",
+      RBF: 'Replace-By-Fee (BIP-125) — lets you speed up a stuck transaction by resubmitting it with a higher fee, like upgrading shipping after placing an order.',
+      nSequence: 'A per-input field that controls whether RBF and timelocks are active. Different values signal different behaviors to the network.',
+      locktime: "A time restriction on when the transaction can be confirmed — like a post-dated check that can't be cashed until a certain date.",
+      'script type': 'The format of a Bitcoin address. Newer types (P2TR, P2WPKH) are cheaper to spend — like different envelope formats where some cost less postage.',
+      'change output': "When you pay with a bill larger than the price, the leftover goes back to you as 'change' — just like at a store.",
+      'dust threshold': "The minimum useful amount (546 sats). Below this, it costs more in fees to spend than it's worth — like a coin too small to be accepted.",
+      'fee rate': 'How much you pay per unit of transaction weight. Higher fee rates get your transaction confirmed faster by miners.',
+      'miner fee': "The amount paid to Bitcoin miners for including your transaction in a block. It's the difference between inputs and outputs.",
+    };
+
+    function Term({ children, term }) {
+      const key = term || children;
+      const tip = GLOSSARY[key];
+      if (!tip) return <span>{children}</span>;
+      return (
+        <span className="glossary-term">
+          {children}
+          <span className="glossary-tip">💡 <strong>{key}:</strong> {tip}</span>
+        </span>
+      );
+    }
+
+    // ── Educational Components ────────────────────────────────────────────
+
+    function IntroPanel() {
+      return (
+        <div className="intro-box">
+          <h2>🪙 How Bitcoin Transactions Work</h2>
+          <div className="intro-analogy">
+            Imagine your Bitcoin wallet as a <strong>piggy bank full of different-sized bills</strong>.
+            When you want to pay someone, you pick enough bills to cover the price, hand them over,
+            and get <strong>change</strong> back. You also pay a small <strong>processing fee</strong>
+            {' '}to the network (miners) who verify your payment. That's exactly what this tool does — it
+            picks the right "bills" (called UTXOs), creates the payment, calculates change, and packages
+            everything into an unsigned transaction (PSBT) ready for your signature.
+          </div>
+          <div className="concept-grid">
+            <div className="concept-card">
+              <div className="cc-icon">🏦</div>
+              <div className="cc-title">Your Wallet (UTXOs)</div>
+              <div className="cc-desc">Your wallet holds individual "coins" called UTXOs — like bills of different sizes ($5, $20, $100). You can't tear a bill in half; you spend it whole and get change back.</div>
+            </div>
+            <div className="concept-card">
+              <div className="cc-icon">🎯</div>
+              <div className="cc-title">Coin Selection</div>
+              <div className="cc-desc">The tool picks which bills to use, preferring ones that are large (fewer coins needed) and cheap to spend (newer address formats cost less in fees).</div>
+            </div>
+            <div className="concept-card">
+              <div className="cc-icon">💸</div>
+              <div className="cc-title">Payments & Change</div>
+              <div className="cc-desc">Your payment goes to the recipient. Any leftover comes back as "change" to your wallet. If the leftover is too tiny (below 546 sats), it becomes part of the fee.</div>
+            </div>
+            <div className="concept-card">
+              <div className="cc-icon">⛏️</div>
+              <div className="cc-title">Miner Fee</div>
+              <div className="cc-desc">Miners process transactions and earn fees. A higher fee rate gets your transaction confirmed faster — like paying extra for express delivery.</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CopyButton({ text }) {
+      const [copied, setCopied] = useState(false);
+      const handleCopy = async () => {
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (e) {}
+      };
+      return (
+        <button className={`copy-btn ${copied ? 'copied' : ''}`} onClick={handleCopy}>
+          {copied ? '✅ Copied!' : '📋 Copy to Clipboard'}
+        </button>
+      );
+    }
 
     // ── Components ───────────────────────────────────────────────────────
 
@@ -241,24 +438,49 @@
     function TransactionFlow({ report }) {
       const inputSum = report.selected_inputs.reduce((s, i) => s + i.value_sats, 0);
       const outputSum = report.outputs.reduce((s, o) => s + o.value_sats, 0);
+      const paymentSum = report.outputs.filter(o => !o.is_change).reduce((s, o) => s + o.value_sats, 0);
+      const changeSum = report.outputs.filter(o => o.is_change).reduce((s, o) => s + o.value_sats, 0);
       return (
-        <div className="flow-diagram">
-          <div className="flow-box" style={{borderColor: 'var(--accent)'}}>
-            <div className="fb-label">Inputs</div>
-            <div className="fb-value" style={{color: 'var(--accent)'}}>{formatSats(inputSum)}</div>
-            <div className="tooltip-text">{report.selected_inputs.length} UTXO(s) selected</div>
+        <div>
+          <div className="flow-diagram">
+            <div className="flow-box" style={{borderColor: 'var(--accent)'}}>
+              <div className="fb-label">Inputs</div>
+              <div className="fb-value" style={{color: 'var(--accent)'}}>{formatSats(inputSum)}</div>
+              <div className="tooltip-text">{report.selected_inputs.length} UTXO(s) selected</div>
+            </div>
+            <div className="flow-arrow">→</div>
+            <div className="flow-box" style={{borderColor: 'var(--green)'}}>
+              <div className="fb-label">Payments</div>
+              <div className="fb-value" style={{color: 'var(--green)'}}>{formatSats(paymentSum)}</div>
+              <div className="tooltip-text">{report.outputs.filter(o => !o.is_change).length} payment(s)</div>
+            </div>
+            {changeSum > 0 && (
+              <>
+                <div className="flow-arrow">+</div>
+                <div className="flow-box" style={{borderColor: 'var(--accent)'}}>
+                  <div className="fb-label">Change</div>
+                  <div className="fb-value" style={{color: 'var(--accent)'}}>{formatSats(changeSum)}</div>
+                  <div className="tooltip-text">Returned to your wallet</div>
+                </div>
+              </>
+            )}
+            <div className="flow-arrow">+</div>
+            <div className="flow-box" style={{borderColor: 'var(--orange)'}}>
+              <div className="fb-label">Fee</div>
+              <div className="fb-value" style={{color: 'var(--orange)'}}>{formatSats(report.fee_sats)}</div>
+              <div className="tooltip-text">{report.fee_rate_sat_vb.toFixed(2)} sat/vB × {report.vbytes} vB</div>
+            </div>
           </div>
-          <div className="flow-arrow">→</div>
-          <div className="flow-box" style={{borderColor: 'var(--green)'}}>
-            <div className="fb-label">Outputs</div>
-            <div className="fb-value" style={{color: 'var(--green)'}}>{formatSats(outputSum)}</div>
-            <div className="tooltip-text">{report.outputs.length} output(s)</div>
-          </div>
-          <div className="flow-arrow">+</div>
-          <div className="flow-box" style={{borderColor: 'var(--orange)'}}>
-            <div className="fb-label">Fee</div>
-            <div className="fb-value" style={{color: 'var(--orange)'}}>{formatSats(report.fee_sats)}</div>
-            <div className="tooltip-text">{report.fee_rate_sat_vb.toFixed(2)} sat/vB × {report.vbytes} vB</div>
+          <div style={{textAlign: 'center', marginTop: '8px', fontFamily: 'SF Mono, Monaco, monospace', fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+            <strong style={{color: 'var(--text)'}}>Balance equation:</strong>{' '}
+            <span style={{color: 'var(--accent)'}}>{inputSum.toLocaleString()}</span>
+            {' = '}
+            <span style={{color: 'var(--green)'}}>{paymentSum.toLocaleString()}</span>
+            {changeSum > 0 && <> + <span style={{color: 'var(--accent)'}}>{changeSum.toLocaleString()}</span></>}
+            {' + '}
+            <span style={{color: 'var(--orange)'}}>{report.fee_sats.toLocaleString()}</span>
+            {' '}
+            {inputSum === outputSum + report.fee_sats ? <span style={{color: 'var(--green)'}}>✓</span> : <span style={{color: 'var(--red)'}}>✗</span>}
           </div>
         </div>
       );
@@ -329,20 +551,34 @@
 
     function WarningsDisplay({ warnings }) {
       if (!warnings || warnings.length === 0) {
-        return <div style={{color: 'var(--green)', fontSize: '0.9rem'}}>✅ No warnings — transaction looks safe</div>;
+        return <div style={{color: 'var(--green)', fontSize: '0.9rem', padding: '12px', background: '#3fb95015', borderRadius: '8px', border: '1px solid #3fb95033'}}>✅ <strong>All clear!</strong> No safety warnings detected — this transaction looks well-constructed and safe to sign.</div>;
       }
       return (
-        <div className="warning-list">
-          {warnings.map((w, i) => (
-            <div key={i} className={`warning-chip ${w.code || 'default'}`} title={WARNING_DESCRIPTIONS[w.code] || ''}>
-              <span>{WARNING_ICONS[w.code] || '⚠️'}</span>
-              <span>{w.code}</span>
-            </div>
-          ))}
-          <div style={{width: '100%', marginTop: '8px'}}>
+        <div>
+          <div className="warning-list">
             {warnings.map((w, i) => (
-              <div key={i} className="tooltip-text" style={{marginBottom: '4px'}}>
-                <strong style={{color: 'var(--text)'}}>{w.code}:</strong> {WARNING_DESCRIPTIONS[w.code] || w.message || 'Unknown warning'}
+              <div key={i} className={`warning-chip ${w.code || 'default'}`} title={WARNING_DESCRIPTIONS[w.code] || ''}>
+                <span>{WARNING_ICONS[w.code] || '⚠️'}</span>
+                <span>{w.code}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop: '12px'}}>
+            {warnings.map((w, i) => (
+              <div key={i} style={{
+                background: '#0d1117',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '10px 14px',
+                marginBottom: '8px',
+                fontSize: '0.85rem',
+              }}>
+                <div style={{fontWeight: 600, color: 'var(--text)', marginBottom: '2px'}}>
+                  {WARNING_ICONS[w.code] || '⚠️'} {w.code}
+                </div>
+                <div style={{color: 'var(--text-muted)'}}>
+                  {WARNING_DESCRIPTIONS[w.code] || w.message || 'Unknown warning'}
+                </div>
               </div>
             ))}
           </div>
@@ -351,6 +587,16 @@
     }
 
     function RbfLocktimePanel({ report }) {
+      // Determine nSequence from rbf_signaling and locktime
+      let nSequenceHex = '0xFFFFFFFF';
+      let nSequenceDesc = 'Final (no RBF, no locktime)';
+      if (report.rbf_signaling) {
+        nSequenceHex = '0xFFFFFFFD';
+        nSequenceDesc = 'RBF signaling enabled (BIP-125)';
+      } else if (report.locktime > 0 || report.locktime_type !== 'none') {
+        nSequenceHex = '0xFFFFFFFE';
+        nSequenceDesc = 'Locktime enabled without RBF';
+      }
       return (
         <div className="stat-grid">
           <div className="stat-card">
@@ -367,6 +613,13 @@
                 : 'Transaction is final once broadcast'
               }
             </div>
+          </div>
+          <div className="stat-card">
+            <div className="label">nSequence</div>
+            <div className="value" style={{fontSize: '1rem', fontFamily: 'SF Mono, Monaco, monospace'}}>
+              {nSequenceHex}
+            </div>
+            <div className="tooltip-text">{nSequenceDesc}</div>
           </div>
           <div className="stat-card">
             <div className="label">Locktime</div>
@@ -387,6 +640,44 @@
               {report.locktime_type === 'unix_timestamp' && '🕐 Unix Timestamp'}
             </div>
           </div>
+        </div>
+      );
+    }
+
+    function UTXOPoolTable({ fixtureJson, selectedTxids }) {
+      let utxos = [];
+      try {
+        const parsed = JSON.parse(fixtureJson);
+        utxos = parsed.utxos || [];
+      } catch { return null; }
+      if (utxos.length === 0) return null;
+      const selectedKeys = new Set(selectedTxids);
+      return (
+        <div style={{overflowX: 'auto', maxHeight: '300px', overflowY: 'auto'}}>
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>TXID : Vout</th>
+                <th>Value</th>
+                <th>Script Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {utxos.map((u, i) => {
+                const key = u.txid + ':' + u.vout;
+                const isSelected = selectedKeys.has(key);
+                return (
+                  <tr key={i} style={{opacity: isSelected ? 1 : 0.5}}>
+                    <td>{isSelected ? <span style={{color: 'var(--green)'}}>✓ Selected</span> : <span style={{color: 'var(--text-muted)'}}>— Skipped</span>}</td>
+                    <td title={u.txid + ':' + u.vout}>{truncateTxid(u.txid)}:{u.vout}</td>
+                    <td>{formatSats(u.value_sats)}</td>
+                    <td><span className="badge badge-type">{u.script_type}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       );
     }
@@ -456,11 +747,16 @@
       return (
         <div className="container">
           <h1>⚒️ <span>Coin Smith</span></h1>
-          <div className="subtitle">Safe PSBT Transaction Builder — Bitcoin Wallet Simulator</div>
+          <div className="subtitle">A visual Bitcoin transaction builder that helps you understand how wallets select coins, calculate fees, and create safe transactions</div>
+
+          <IntroPanel />
 
           {/* Fixture Selection */}
           <div className="panel">
-            <h2>📁 Load Fixture</h2>
+            <h2>📁 Load a Transaction Scenario</h2>
+            <div className="tooltip-text" style={{marginBottom: '8px'}}>
+              A "fixture" describes a wallet scenario: your available coins, who to pay, the fee rate, and settings like RBF. Pick one from the dropdown or paste your own JSON.
+            </div>
             <div className="fixture-selector">
               <select value={selectedFixture} onChange={e => setSelectedFixture(e.target.value)}>
                 {fixtures.map(f => <option key={f} value={f}>{f.replace('.json', '')}</option>)}
@@ -490,58 +786,93 @@
             <>
               {/* Transaction Flow Diagram */}
               <div className="panel">
-                <h2>🔀 Transaction Flow</h2>
+                <h2>🔀 Where Does the Money Go?</h2>
+                <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                  This diagram shows the flow of funds — coins go in from your wallet, payments go out to recipients, change comes back to you, and the miner fee is the difference.
+                </div>
                 <TransactionFlow report={report} />
               </div>
 
               {/* Summary Stats */}
               <div className="panel">
-                <h2>📊 Summary</h2>
+                <h2>📊 Transaction Summary</h2>
+                <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                  Key numbers at a glance — hover over any card for a plain-English explanation.
+                </div>
                 <div className="stat-grid">
-                  <StatCard label="Total Inputs" value={report.selected_inputs.length} color="accent" tooltip="Number of UTXOs selected from wallet" />
-                  <StatCard label="Total Outputs" value={report.outputs.length} color="green" tooltip="Payment outputs + optional change" />
-                  <StatCard label="Fee" value={formatSats(report.fee_sats)} color="orange" tooltip="Total miner fee paid for this transaction" />
-                  <StatCard label="Fee Rate" value={report.fee_rate_sat_vb.toFixed(2) + ' sat/vB'} color="orange" tooltip="Fee per virtual byte — determines mining priority" />
-                  <StatCard label="Virtual Size" value={report.vbytes + ' vB'} color="" tooltip="Transaction weight with witness discount (SegWit)" />
-                  <StatCard label="Strategy" value={report.strategy} color="accent" tooltip="Coin selection algorithm used" />
+                  <StatCard label="Coins Used" value={report.selected_inputs.length} color="accent" tooltip="How many 'bills' from your wallet were picked to fund this payment" />
+                  <StatCard label="Outputs Created" value={report.outputs.length} color="green" tooltip="Total destinations: payment(s) sent + optional change back to you" />
+                  <StatCard label="Miner Fee" value={formatSats(report.fee_sats)} color="orange" tooltip="The 'processing fee' paid to miners — like a shipping cost for your transaction" />
+                  <StatCard label="Fee Rate" value={report.fee_rate_sat_vb.toFixed(2) + ' sat/vB'} color="orange" tooltip="Cost per unit of transaction size — higher rate = faster confirmation, like express shipping" />
+                  <StatCard label="Tx Weight" value={report.vbytes + ' vB'} color="" tooltip="How 'heavy' the transaction is — more coins used = larger size = higher total fee" />
+                  <StatCard label="Strategy" value={report.strategy} color="accent" tooltip="Coin selection algorithm: picks high-value, cheap-to-spend coins first to minimize your fees" />
                 </div>
               </div>
 
               {/* Warnings */}
               <div className="panel">
-                <h2>⚠️ Warnings</h2>
+                <h2>⚠️ Safety Check</h2>
+                <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                  These warnings flag anything unusual about your transaction — like a safety checklist before sending money.
+                </div>
                 <WarningsDisplay warnings={report.warnings} />
               </div>
 
               {/* RBF / Locktime */}
               <div className="panel">
-                <h2>🔐 RBF & Locktime</h2>
+                <h2>🔐 Transaction Controls</h2>
+                <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                  These settings control whether you can replace this transaction later (RBF) and when it can be confirmed (locktime) — like adding special instructions to a bank transfer.
+                </div>
                 <RbfLocktimePanel report={report} />
               </div>
 
               {/* Inputs & Outputs */}
               <div className="grid">
                 <div className="panel">
-                  <h2>📥 Selected Inputs (UTXOs)</h2>
+                  <h2>📥 Coins Being Spent</h2>
                   <div className="tooltip-text" style={{marginBottom: '8px'}}>
-                    Coins selected from your wallet to fund this transaction
+                    These are the "bills" picked from your wallet. Each is a previous payment you received (called a UTXO) now being used to fund this transaction.
                   </div>
                   <InputsTable inputs={report.selected_inputs} />
                 </div>
                 <div className="panel">
-                  <h2>📤 Transaction Outputs</h2>
+                  <h2>📤 Where It's Going</h2>
                   <div className="tooltip-text" style={{marginBottom: '8px'}}>
-                    Payment destinations and change returned to your wallet
+                    💸 <strong>Payments</strong> go to the recipient. 🔄 <strong>Change</strong> comes back to your wallet — like getting change from a cashier.
                   </div>
                   <OutputsTable outputs={report.outputs} />
                 </div>
               </div>
 
+              {/* UTXO Pool Overview */}
+              <div className="panel">
+                <h2>🏦 Your Wallet's Coins</h2>
+                <div className="tooltip-text" style={{marginBottom: '8px'}}>
+                  Below is every coin (UTXO) in your wallet — like laying out all the bills from your physical wallet on a table.
+                  Green-highlighted coins were selected to fund this transaction; dimmed coins were skipped.
+                </div>
+                <div className="why-selected">
+                  💡 <strong>Why these coins?</strong> The tool uses an "effective value" strategy — it prefers coins that are
+                  {' '}<strong>large</strong> (covers more of the payment with fewer coins) and <strong>cheap to spend</strong> (newer
+                  address formats like P2TR and P2WPKH cost less in fees than older formats like P2PKH). This minimizes
+                  the total fee you pay.
+                </div>
+                <UTXOPoolTable
+                  fixtureJson={fixtureJson}
+                  selectedTxids={new Set(report.selected_inputs.map(i => i.txid + ':' + i.vout))}
+                />
+              </div>
+
               {/* PSBT */}
               <div className="panel">
-                <h2>📦 PSBT (Base64)</h2>
+                <h2>📦 PSBT (Unsigned Transaction Package)</h2>
                 <div className="tooltip-text" style={{marginBottom: '8px'}}>
-                  Partially Signed Bitcoin Transaction — an unsigned transaction packaged with metadata for safe offline signing
+                  This is your <strong>Partially Signed Bitcoin Transaction</strong> — think of it as a filled-out check that hasn't been signed yet.
+                  It contains all the details (which coins to spend, who to pay, how much change) in a standard format that any compatible wallet can read and sign.
+                </div>
+                <div style={{display: 'flex', gap: '8px', marginBottom: '8px'}}>
+                  <CopyButton text={report.psbt_base64} />
                 </div>
                 <div className="psbt-display">{report.psbt_base64}</div>
               </div>

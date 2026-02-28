@@ -80,4 +80,78 @@ describe('Warnings', () => {
     });
     expect(w.length).toBe(0);
   });
+
+  // ── New warning types ───────────────────────────────────────────────────
+
+  test('DUST_PAYMENT when payment value < 546', () => {
+    const w = generateWarnings({
+      fee_sats: 500,
+      fee_rate_sat_vb: 5,
+      change_value: 1000,
+      rbf_signaling: false,
+      payment_values: [100, 50000],
+    });
+    const codes = w.map((x) => x.code);
+    expect(codes).toContain('DUST_PAYMENT');
+  });
+
+  test('no DUST_PAYMENT when all payments above dust', () => {
+    const w = generateWarnings({
+      fee_sats: 500,
+      fee_rate_sat_vb: 5,
+      change_value: 1000,
+      rbf_signaling: false,
+      payment_values: [1000, 50000],
+    });
+    const codes = w.map((x) => x.code);
+    expect(codes).not.toContain('DUST_PAYMENT');
+  });
+
+  test('UNKNOWN_NETWORK for unrecognized network', () => {
+    const w = generateWarnings({
+      fee_sats: 500,
+      fee_rate_sat_vb: 5,
+      change_value: 1000,
+      rbf_signaling: false,
+      network: 'obscurenet',
+    });
+    const codes = w.map((x) => x.code);
+    expect(codes).toContain('UNKNOWN_NETWORK');
+  });
+
+  test('no UNKNOWN_NETWORK for mainnet', () => {
+    const w = generateWarnings({
+      fee_sats: 500,
+      fee_rate_sat_vb: 5,
+      change_value: 1000,
+      rbf_signaling: false,
+      network: 'mainnet',
+    });
+    const codes = w.map((x) => x.code);
+    expect(codes).not.toContain('UNKNOWN_NETWORK');
+  });
+
+  test('LARGE_INPUT_COUNT when > 20 inputs', () => {
+    const w = generateWarnings({
+      fee_sats: 5000,
+      fee_rate_sat_vb: 5,
+      change_value: 1000,
+      rbf_signaling: false,
+      input_count: 25,
+    });
+    const codes = w.map((x) => x.code);
+    expect(codes).toContain('LARGE_INPUT_COUNT');
+  });
+
+  test('no LARGE_INPUT_COUNT when <= 20 inputs', () => {
+    const w = generateWarnings({
+      fee_sats: 500,
+      fee_rate_sat_vb: 5,
+      change_value: 1000,
+      rbf_signaling: false,
+      input_count: 5,
+    });
+    const codes = w.map((x) => x.code);
+    expect(codes).not.toContain('LARGE_INPUT_COUNT');
+  });
 });

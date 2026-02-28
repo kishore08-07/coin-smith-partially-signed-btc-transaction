@@ -48,11 +48,16 @@ export function buildFromFixture(fixtureJson: string): Report {
   );
 
   // 5. Generate warnings
+  const actualFeeRate = feeChange.fee_sats / feeChange.vbytes;
+  const reportedFeeRate = parseFloat(actualFeeRate.toFixed(4));
   const warnings = generateWarnings({
     fee_sats: feeChange.fee_sats,
-    fee_rate_sat_vb: feeChange.fee_sats / feeChange.vbytes,
+    fee_rate_sat_vb: reportedFeeRate,
     change_value: feeChange.change_value,
     rbf_signaling: rbfLocktime.rbf_signaling,
+    payment_values: fixture.payments.map((p) => p.value_sats),
+    network: fixture.network,
+    input_count: selected.length,
   });
 
   // 6. Build report
@@ -93,7 +98,7 @@ function main(): void {
     if (!fs.existsSync(fixturePath)) {
       report = buildErrorReport('FILE_NOT_FOUND', `Fixture file not found: ${fixturePath}`);
       fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
-      process.exit(1);
+      process.exit(0);
     }
 
     const fixtureJson = fs.readFileSync(fixturePath, 'utf-8');
@@ -110,7 +115,7 @@ function main(): void {
     }
     fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
     console.error(`Error: ${(e as Error).message}`);
-    process.exit(1);
+    process.exit(0);
   }
 }
 

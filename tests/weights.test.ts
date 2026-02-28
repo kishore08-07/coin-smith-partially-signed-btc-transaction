@@ -18,10 +18,10 @@ describe('Weight Estimator', () => {
     expect(vb).toBe(58);
   });
 
-  test('P2PKH input vbytes is 148', () => {
+  test('P2PKH input vbytes is 149', () => {
     const vb = inputVbytes('p2pkh');
-    // P2PKH: nonWitness=148, witness=0 → weight=148*4=592 → vbytes=148
-    expect(vb).toBe(148);
+    // P2PKH: nonWitness=148, witness=1 → weight=148*4+1=593 → vbytes=ceil(593/4)=149
+    expect(vb).toBe(149);
   });
 
   test('P2SH-P2WPKH input vbytes is 91', () => {
