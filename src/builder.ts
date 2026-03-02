@@ -98,7 +98,7 @@ function main(): void {
     if (!fs.existsSync(fixturePath)) {
       report = buildErrorReport('FILE_NOT_FOUND', `Fixture file not found: ${fixturePath}`);
       fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
-      process.exit(0);
+      process.exit(1);
     }
 
     const fixtureJson = fs.readFileSync(fixturePath, 'utf-8');
@@ -115,7 +115,7 @@ function main(): void {
     }
     fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
     console.error(`Error: ${(e as Error).message}`);
-    process.exit(0);
+    process.exit(1);
   }
 }
 
