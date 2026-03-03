@@ -85,6 +85,18 @@ app.get('/api/fixtures/:name', (req, res) => {
   }
 });
 
+// ── Vendor JS (served locally — no CDN / no internet required) ─────────
+const nodeModulesDir = path.join(__dirname, '..', 'node_modules');
+app.get('/vendor/react.js', (_req, res) => {
+  res.sendFile(path.join(nodeModulesDir, 'react', 'umd', 'react.production.min.js'));
+});
+app.get('/vendor/react-dom.js', (_req, res) => {
+  res.sendFile(path.join(nodeModulesDir, 'react-dom', 'umd', 'react-dom.production.min.js'));
+});
+app.get('/vendor/babel.js', (_req, res) => {
+  res.sendFile(path.join(nodeModulesDir, '@babel', 'standalone', 'babel.min.js'));
+});
+
 // ── Serve React UI ───────────────────────────────────────────────────────
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir));

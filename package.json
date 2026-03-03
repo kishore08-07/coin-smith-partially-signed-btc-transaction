@@ -10,9 +10,12 @@
     "test": "jest --forceExit"
   },
   "dependencies": {
+    "@babel/standalone": "^7.29.1",
     "bitcoinjs-lib": "^6.1.7",
     "ecpair": "^2.1.0",
     "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tiny-secp256k1": "^2.2.3"
   },
   "devDependencies": {
