@@ -1,4 +1,3 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/bK2yja45)
 # Week 2 Challenge: Coin Smith
 
 Build a **safe PSBT transaction builder** that:
@@ -359,36 +358,7 @@ The hidden evaluation covers at least these categories. You don't know the exact
 
 ---
 
-## Acceptance criteria (definitive)
-
-- `cli.sh` succeeds on all provided fixtures
-- PSBT is structurally valid and matches reported inputs/outputs
-- Amounts balance correctly (inputs = outputs + fee)
-- Fee/change/dust handling is wallet-safe and consistent
-- RBF/locktime: `nSequence` and `nLockTime` in the PSBT unsigned transaction match the interaction matrix for the given fixture fields
-- Report includes correct `rbf_signaling`, `locktime`, and `locktime_type` values
-- Tests pass (`grade.sh`)
-- Demo video link is included in `demo.md` at the repository root (the file should contain only the link):
-  - **Where to upload:** YouTube, Loom, or Google Drive. The link must be viewable by evaluators without requesting access (public or unlisted is fine; no “request access” links).
-  - **What to record:** a screen recording of your **web UI** walkthrough (no code walkthrough; don’t spend time scrolling through source files).
-  - **What to demonstrate:** load **one** fixture in your UI, build a PSBT, and walk through the chosen inputs and created outputs using the UI.
-  - **How to explain:** speak as if to a non-technical person who has never seen Bitcoin before; use simple language and define terms as you introduce them.
-  - **Topics your walkthrough must cover (using the UI):**
-    - what a wallet is tracking (UTXOs) and what it means to "select coins"
-    - which inputs were selected and why (in simple terms)
-    - payment outputs vs the change output (what "change" is and why it exists)
-    - dust rules (why tiny outputs are unsafe/useless)
-    - fee rate → vbytes → fee (why transaction size affects fee; why change can affect fee)
-    - send-all vs creating change (what it means when leftover becomes fee)
-    - what a PSBT is at a high level (an unsigned transaction packaged with metadata so it can be safely signed)
-    - RBF: what Replace-By-Fee means (why a sender might want to bump a fee) and how `nSequence` signals it
-    - timelocks: what `nLockTime` does (why a transaction might be locked until a certain block or time)
-    - any warnings your UI shows (high fee, dust change, send-all, RBF signaling, etc.)
-  - **Hard limit:** the video must be strictly **less than 2 minutes** long.
-
----
-
-## Stretch goals (optional, but good for learning)
+## Stretch goals
 
 - Multiple coin selection strategies + compare scores
 - Sign PSBT with test keys and finalize tx hex
@@ -406,44 +376,4 @@ The hidden evaluation covers at least these categories. You don't know the exact
 - Locktime semantics: block height vs unix timestamp, anti-fee-sniping
 
 ---
-
-## Evaluation criteria
-
-Evaluation happens in two phases:
-
-### Phase 1: Automated evaluation (before deadline)
-
-- **CLI correctness:** your `cli.sh` will be run against all public fixtures.
-- **Web health check:** `web.sh` must start successfully and respond to `GET /api/health` with `200 { "ok": true }`.
-- **Error handling:** invalid inputs must produce structured error JSON (`{ "ok": false, "error": { "code": "...", "message": "..." } }`) and exit code `1`.
-
-### Phase 2: Manual evaluation (after deadline)
-
-- **Hidden fixtures:** your CLI will be tested against a broad set of hidden fixtures covering the scenarios listed above.
-- **Web UI quality:** clarity of explanations, visual design, diagrams, and how well the UI teaches non-technical users about Bitcoin transactions.
-- **Demo video:** evaluated for coverage of required topics, clarity of explanation, and adherence to the 2-minute time limit.
-- **Code quality:** readability, structure, and appropriate use of abstractions.
-
----
-
-## Do not modify
-
-The following files and directories are part of the evaluation infrastructure and **must not be edited**:
-
-- `grade.sh` — automated grading script
-- `fixtures/` — public test fixtures
-- `.github/` — CI/CD workflow configuration
-
-Modifying any of these may cause your submission to fail manual evaluation.
-
----
-
-## Plagiarism policy
-
-- All submitted code must be your own original work. You may use AI coding assistants (e.g. GitHub Copilot, ChatGPT, Claude) as tools, but you must understand and be able to explain every part of your submission.
-- Copying code from other participants' submissions (current or past cohorts) is strictly prohibited.
-- Using open-source libraries and referencing public documentation (BIPs, Bitcoin wiki, Stack Exchange, etc.) is encouraged — that is research, not plagiarism.
-- Submissions will be checked for similarity against other participants. If two or more submissions share substantially identical logic or structure beyond what would arise from following the spec, all involved submissions may be disqualified.
-- If you are unsure whether something counts as plagiarism, ask before submitting.
-
 
